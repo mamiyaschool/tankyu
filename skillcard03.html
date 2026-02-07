@@ -1,0 +1,1545 @@
+<!doctype html>
+<html lang="ja" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>探究スキルカード</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700&amp;family=Zen+Maru+Gothic:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <style>
+    body {
+      box-sizing: border-box;
+    }
+    
+    * {
+      font-family: 'M PLUS Rounded 1c', sans-serif;
+    }
+    
+    .title-font {
+      font-family: 'Zen Maru Gothic', sans-serif;
+    }
+    
+    .card-container {
+      perspective: 1500px;
+    }
+    
+    .card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      transform-style: preserve-3d;
+    }
+    
+    .card-inner.flipped {
+      transform: rotateY(180deg);
+    }
+    
+    .card-front, .card-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border-radius: 0;
+      overflow: hidden;
+      border: 4px solid #d4af37;
+      box-shadow: 0 0 20px rgba(212, 175, 55, 0.4), inset 0 0 20px rgba(212, 175, 55, 0.1);
+    }
+    
+    .card-back {
+      transform: rotateY(180deg);
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    @keyframes rotate-bg {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    .float-animation {
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    .rotate-bg {
+      animation: rotate-bg 20s linear infinite;
+    }
+    
+    @keyframes draw-card {
+      0% { transform: scale(0.8) rotateY(180deg); opacity: 0; }
+      50% { transform: scale(1.05) rotateY(90deg); opacity: 1; }
+      100% { transform: scale(1) rotateY(0deg); opacity: 1; }
+    }
+    
+    .draw-animation {
+      animation: draw-card 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+    
+    .toast {
+      animation: slideIn 0.3s ease-out, fadeOut 0.3s ease-in 2.7s forwards;
+    }
+    
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+    
+    .my-card-item {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      cursor: pointer;
+    }
+    
+    .my-card-item:hover {
+      transform: translateY(-8px) rotate(0deg) !important;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      z-index: 10;
+    }
+    
+    .grid-card-item {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      cursor: pointer;
+    }
+    
+    .grid-card-item:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+    }
+    
+    .btn-secondary {
+      background: linear-gradient(135deg, #374151, #4b5563);
+      transition: all 0.3s ease;
+    }
+    
+    .btn-secondary:hover {
+      background: linear-gradient(135deg, #4b5563, #6b7280);
+      transform: translateY(-2px);
+    }
+    
+    .btn-gold {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      transition: all 0.3s ease;
+    }
+    
+    .btn-gold:hover {
+      background: linear-gradient(135deg, #d97706, #b45309);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(245, 158, 11, 0.3);
+    }
+    
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      transition: all 0.3s ease;
+    }
+    
+    .btn-danger:hover {
+      background: linear-gradient(135deg, #dc2626, #b91c1c);
+    }
+    
+    .scrollbar-thin::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .scrollbar-thin::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+    
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 3px;
+    }
+    
+    .loading-spinner {
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #ffd700;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 0.8s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .popup-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      animation: fadeIn 0.2s ease-out;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    .popup-card {
+      position: relative;
+      width: 100%;
+      max-width: 400px;
+      min-height: 600px;
+      border-radius: 0;
+      overflow: visible;
+      border: 4px solid #d4af37;
+      box-shadow: 0 0 30px rgba(212, 175, 55, 0.5), 0 25px 50px rgba(0, 0, 0, 0.5);
+      animation: popupScale 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transform-origin: center;
+      background: #fcfcfc;
+    }
+    
+    @keyframes popupScale {
+      from { transform: scale(0.8); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    
+    .popup-close {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      width: 32px;
+      height: 32px;
+      background: rgba(239, 68, 68, 0.95);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 9999;
+      transition: all 0.2s ease;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+    
+    .popup-close:hover {
+      background: rgba(239, 68, 68, 1);
+      transform: scale(1.1);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+    }
+    
+    /* マイカードの削除ボタン（ポップアップの閉じるボタンと同じスタイル） */
+    button[data-delete] {
+      transition: all 0.2s ease;
+    }
+    
+    button[data-delete]:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4) !important;
+    }
+    
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+ </head>
+ <body class="h-full bg-gradient-to-br from-[#0a0a0a] to-[#1a1a1a] text-white overflow-auto">
+  <div id="app" class="min-h-full w-full p-4 md:p-8">
+   <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+   <header class="text-center mb-8">
+    <h1 id="app-title" class="title-font text-3xl md:text-4xl font-bold bg-gradient-to-r from-yellow-400 via-orange-400 to-yellow-400 bg-clip-text text-transparent">探究スキルカード</h1>
+    <p class="text-gray-400 mt-2">カードを引いて探究スキルを身につけよう</p>
+   </header>
+   <main class="max-w-6xl mx-auto">
+    <section class="mb-8">
+     <div class="flex flex-wrap justify-center gap-4 mb-4">
+      <button id="draw-sample-btn" class="btn-gold text-white font-bold py-3 px-6 rounded-xl shadow-lg">カードを引く</button>
+     </div>
+     <div class="flex justify-center mb-6">
+      <div class="bg-gray-900/50 rounded-xl p-3 inline-flex flex-wrap gap-2 items-center"><span class="text-sm text-gray-400 mr-2">🎯 属性絞り込み:</span> <button class="category-filter-btn active bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium py-1.5 px-4 rounded-lg transition-all" data-category="all">すべて</button> <button class="category-filter-btn bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium py-1.5 px-4 rounded-lg transition-all" data-category="思考（比較系）">■ 比較系</button> <button class="category-filter-btn bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium py-1.5 px-4 rounded-lg transition-all" data-category="思考（分解↔統合系）">▲ 分解統合系</button> <button class="category-filter-btn bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium py-1.5 px-4 rounded-lg transition-all" data-category="思考（多面・多角系）">● 多面多角系</button> <button class="category-filter-btn bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium py-1.5 px-4 rounded-lg transition-all" data-category="思考（特殊系）">★ 特殊系</button> <button class="category-filter-btn bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium py-1.5 px-4 rounded-lg transition-all" data-category="学び方">♤ 学び方</button> <button class="category-filter-btn bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium py-1.5 px-4 rounded-lg transition-all" data-category="言語">♧ 言語</button> <button class="category-filter-btn bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium py-1.5 px-4 rounded-lg transition-all" data-category="情報">♢ 情報</button> <button class="category-filter-btn bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium py-1.5 px-4 rounded-lg transition-all" data-category="協働">♡ 協働</button>
+      </div>
+     </div>
+     <div class="mx-auto w-full max-w-sm">
+     <div id="card-area" class="block w-full">
+      <div id="card-placeholder" class="block w-full h-[600px] overflow-hidden border-4 border-[#d4af37] shadow-lg rounded-none relative" style="box-shadow: 0 0 20px rgba(212, 175, 55, 0.4), inset 0 0 20px rgba(212, 175, 55, 0.1);">
+        <img id="card-placeholder-back-img" class="absolute left-0 top-1/2 z-10 -translate-y-1/2 w-full h-auto max-h-none" alt="カード裏" style="display: none; min-width: 100%;">
+        <div id="card-placeholder-back-fallback" class="h-full w-full bg-gradient-to-br from-amber-950 via-amber-900 to-stone-900 flex flex-col items-center justify-center relative overflow-hidden">
+          <div class="absolute inset-0 opacity-10">
+            <div class="rotate-bg absolute inset-[-50%] w-[200%] h-[200%]">
+              <div class="w-full h-full" style="background: repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(255,215,0,0.3) 20px, rgba(255,215,0,0.3) 40px);"></div>
+            </div>
+          </div>
+          <div class="float-animation text-8xl mb-4 relative z-10">🔎</div>
+          <p class="title-font text-2xl font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent relative z-10">探究カード</p>
+          <p class="text-yellow-500/70 text-sm mt-2 relative z-10">ボタンを押してカードを引こう！</p>
+          <div class="absolute top-4 left-4 text-yellow-500/50 text-2xl">✦</div>
+          <div class="absolute top-4 right-4 text-yellow-500/50 text-2xl">✦</div>
+          <div class="absolute bottom-4 left-4 text-yellow-500/50 text-2xl">✦</div>
+          <div class="absolute bottom-4 right-4 text-yellow-500/50 text-2xl">✦</div>
+        </div>
+      </div>
+      <div id="card-display" class="hidden card-container w-full h-[600px]">
+       <div id="card-inner" class="card-inner">
+       <div id="card-front" class="card-front">
+        <div class="h-full flex flex-col overflow-hidden">
+         <div class="relative flex flex-col flex-shrink-0 overflow-hidden" style="height: 70%;">
+          <div class="absolute top-3 right-4 z-10">
+           <span id="card-category" class="backdrop-blur px-4 py-1.5 rounded-full text-sm font-bold text-white shadow-lg"></span>
+          </div>
+          <div class="flex-1 flex items-center justify-center px-4 pt-2 pb-1 bg-white/10" style="min-height: 0;">
+           <div id="card-image-container" class="w-full h-full flex items-center justify-center">
+            <img id="card-image" class="max-w-full max-h-full w-auto h-auto object-contain" alt="スキルイラスト">
+           </div>
+          </div>
+          <div class="text-center px-6 py-1 flex flex-col justify-end" style="min-height: 64px; flex-shrink: 0;">
+           <h2 id="card-name" class="title-font text-2xl md:text-3xl font-bold text-gray-800"></h2>
+           <p id="card-formal-name" class="title-font text-base md:text-lg text-gray-600 mt-0.5"></p>
+          </div>
+         </div>
+         <div class="border-t-3 border-[#d4af37]" style="border-top-width: 3px; flex-shrink: 0;"></div>
+         <div class="flex flex-col flex-shrink-0 overflow-hidden" style="height: 30%;">
+          <div class="flex-1 flex items-center justify-center text-center px-6 py-3" style="min-height: 0;">
+           <p id="card-description" class="text-base leading-relaxed text-gray-700"></p>
+          </div>
+          <div class="px-4 pb-4" style="flex-shrink: 0;">
+           <div class="bg-gray-800 rounded-xl p-3 border border-gray-600">
+            <p class="text-xs text-gray-300 mb-1 font-medium">🎯 スキル例</p>
+            <p id="card-hint" class="text-sm text-gray-100"></p>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="card-back relative border-4 border-amber-400/60" style="background: #1c1917;">
+         <img id="card-back-img" class="absolute left-0 top-1/2 -translate-y-1/2 w-full h-auto max-h-none" alt="カード裏" style="display: none; min-width: 100%;">
+         <div id="card-back-fallback" class="h-full w-full bg-gradient-to-br from-amber-950 via-amber-900 to-stone-900 flex flex-col items-center justify-center relative overflow-hidden">
+          <div class="absolute inset-0 opacity-10">
+           <div class="rotate-bg absolute inset-[-50%] w-[200%] h-[200%]">
+            <div class="w-full h-full" style="background: repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(255,215,0,0.3) 20px, rgba(255,215,0,0.3) 40px);"></div>
+           </div>
+          </div>
+          <div class="float-animation text-8xl mb-4">🔎</div>
+          <p class="title-font text-2xl font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">探究カード</p>
+          <div class="absolute top-4 left-4 text-yellow-500/50 text-2xl">✦</div>
+          <div class="absolute top-4 right-4 text-yellow-500/50 text-2xl">✦</div>
+          <div class="absolute bottom-4 left-4 text-yellow-500/50 text-2xl">✦</div>
+          <div class="absolute bottom-4 right-4 text-yellow-500/50 text-2xl">✦</div>
+         </div>
+        </div>
+       </div>
+      </div>
+     </div>
+     <div id="card-actions" class="hidden block w-full mt-5 flex flex-row justify-center gap-3">
+      <button id="add-to-hand-btn" class="btn-gold text-white text-sm font-medium py-2 px-4 rounded-lg">マイカードに加える</button>
+      <button id="return-to-deck-btn" class="btn-secondary text-white text-sm font-medium py-2 px-4 rounded-lg">違うカードにする</button>
+     </div>
+     </div>
+    </section>
+    <section id="hand-section" class="mb-8">
+     <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+      <h2 class="title-font text-xl font-bold flex items-center gap-2"><span>✨</span> <span id="my-cards-label">マイカード</span> <span id="hand-count" class="text-sm font-normal text-gray-400"></span></h2>
+      <div class="flex gap-2 flex-wrap">
+        <label class="bg-gray-700 hover:bg-gray-600 text-white text-xs py-1.5 px-3 rounded-lg transition-all cursor-pointer">📂 読み込み <input type="file" id="import-hand-file" accept=".csv,.json" class="hidden"></label>
+        <button id="export-hand-json" class="bg-gray-700 hover:bg-gray-600 text-white text-xs py-1.5 px-3 rounded-lg transition-all">💾 マイカード保存</button>
+      </div>
+     </div>
+     <div id="hand-cards" class="flex flex-wrap gap-6 justify-center md:justify-start">
+      <div id="hand-empty" class="w-full text-center text-gray-500 py-8">
+       まだマイカードがありません
+      </div>
+     </div>
+    </section>
+    <div class="space-y-4">
+     <section class="bg-gray-900/50 rounded-2xl overflow-hidden"><button id="all-cards-toggle" class="w-full p-4 flex items-center justify-between text-left hover:bg-gray-800/50 transition-colors"> <h2 class="title-font text-xl font-bold flex items-center gap-2"><span>🎴</span> <span>すべてのカード一覧</span> <span id="all-cards-count" class="text-sm font-normal text-gray-400"></span></h2><span id="all-cards-arrow" class="text-2xl transition-transform">▼</span> </button>
+      <div id="all-cards-content" class="hidden p-4 pt-0 border-t border-gray-800">
+       <div class="mb-4 flex justify-center">
+        <div class="bg-gray-800/50 rounded-lg p-2 inline-flex flex-wrap gap-2"><button class="all-cards-filter-btn active bg-purple-600 hover:bg-purple-700 text-white text-xs py-1.5 px-3 rounded transition-all" data-filter="all">すべて</button> <button class="all-cards-filter-btn bg-gray-700 hover:bg-gray-600 text-white text-xs py-1.5 px-3 rounded transition-all" data-filter="思考（比較系）">■ 比較系</button> <button class="all-cards-filter-btn bg-gray-700 hover:bg-gray-600 text-white text-xs py-1.5 px-3 rounded transition-all" data-filter="思考（分解↔統合系）">▲ 分解統合系</button> <button class="all-cards-filter-btn bg-gray-700 hover:bg-gray-600 text-white text-xs py-1.5 px-3 rounded transition-all" data-filter="思考（多面・多角系）">● 多面多角系</button> <button class="all-cards-filter-btn bg-gray-700 hover:bg-gray-600 text-white text-xs py-1.5 px-3 rounded transition-all" data-filter="思考（特殊系）">★ 特殊系</button> <button class="all-cards-filter-btn bg-gray-700 hover:bg-gray-600 text-white text-xs py-1.5 px-3 rounded transition-all" data-filter="学び方">♤ 学び方</button> <button class="all-cards-filter-btn bg-gray-700 hover:bg-gray-600 text-white text-xs py-1.5 px-3 rounded transition-all" data-filter="言語">♧ 言語</button> <button class="all-cards-filter-btn bg-gray-700 hover:bg-gray-600 text-white text-xs py-1.5 px-3 rounded transition-all" data-filter="情報">♢ 情報</button> <button class="all-cards-filter-btn bg-gray-700 hover:bg-gray-600 text-white text-xs py-1.5 px-3 rounded transition-all" data-filter="協働">♡ 協働</button>
+        </div>
+       </div>
+       <div id="all-cards-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3"></div>
+      </div>
+     </section>
+    </div>
+   </main>
+   <div id="loading-overlay" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+    <div class="flex flex-col items-center gap-3">
+     <div class="loading-spinner"></div>
+     <p class="text-yellow-400">読み込み中...</p>
+    </div>
+   </div>
+   <div id="popup-overlay" class="hidden popup-overlay">
+    <div class="popup-card relative">
+     <button class="popup-close" id="popup-close" aria-label="閉じる">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+     </button>
+     <div id="popup-card-content" class="h-full flex flex-col overflow-hidden rounded-none">
+      <div class="relative flex flex-col" style="height: 70%; min-height: 420px;">
+       <div class="absolute top-3 right-4 z-10">
+        <span id="popup-category" class="backdrop-blur px-4 py-1.5 rounded-full text-sm font-bold text-white shadow-lg"></span>
+       </div>
+       <div class="flex-1 flex items-center justify-center px-4 pt-2 pb-1 bg-white/10" style="min-height: 0;">
+        <div id="popup-image-container" class="w-full h-full flex items-center justify-center"><img id="popup-image" class="max-w-full max-h-full w-auto h-auto object-contain" alt="スキルイラスト" loading="lazy" onerror="console.error('Image failed to load:', this.src); this.style.display='none';">
+        </div>
+       </div>
+       <div class="text-center px-6 py-1 flex flex-col justify-end" style="min-height: 64px; flex-shrink: 0;">
+        <h2 id="popup-name" class="title-font text-2xl md:text-3xl font-bold text-gray-800"></h2>
+        <p id="popup-formal-name" class="title-font text-base md:text-lg text-gray-600 mt-0.5"></p>
+       </div>
+      </div>
+      <div class="border-t-3 border-[#d4af37]" style="border-top-width: 3px; flex-shrink: 0;"></div>
+      <div class="flex flex-col" style="height: 30%; min-height: 180px;">
+       <div class="flex-1 flex items-center justify-center text-center px-6 py-3" style="min-height: 0;">
+        <p id="popup-description" class="text-base leading-relaxed text-gray-700"></p>
+       </div>
+       <div class="px-4 pb-4" style="flex-shrink: 0;">
+        <div class="bg-gray-800 rounded-xl p-3 border border-gray-600">
+         <p class="text-xs text-gray-300 mb-1 font-medium">🎯 スキル例</p>
+         <p id="popup-hint" class="text-sm text-gray-100"></p>
+        </div>
+       </div>
+      </div>
+     </div>
+    </div>
+   </div>
+  </div>
+  <script>
+    const defaultConfig = {
+      app_title: '探究スキルカード',
+      draw_sample_btn: 'カードを引く',
+      draw_registered_btn: 'カードを引く',
+      add_to_hand_btn: 'マイカードに加える',
+      return_to_deck_btn: '違うカードにする',
+      my_cards_label: 'マイカード',
+      card_back_image_url: 'カード裏面.png'
+    };
+
+    const sampleCards = [
+  {
+    "skill_name": "かさなり発見ミラー",
+    "formal_name": "思考",
+    "skill_category": "思考（比較系）",
+    "description": "複数のものを映し出すと、同じ部分がビカッと重なり、違う部分が左右に飛び出して見える魔法の手鏡",
+    "hint": "「縄文時代」と「弥生時代」を比べて、住む場所や食べ物等の視点から違いや共通点を整理する等",
+    "shape": "■",
+    "color": "orange",
+    "image_url": "https://www.city.moriguchi.osaka.jp/material/images/group/54/kasanari.png"
+  },
+  {
+    "skill_name": "つながりマグネット",
+    "skill_category": "思考（比較系）",
+    "description": "離れている情報同士を磁石のように引き寄せ、どんな関係になっているかを見つける道具",
+    "hint": "地形と人々のくらしをつないでなぜそこに町ができたか考える、気づきを出し合って関係するもの同士をつなげて整理する等",
+    "shape": "■",
+    "color": "orange",
+    "image_url": "https://www.city.moriguchi.osaka.jp/material/images/group/54/tunagari.png"
+  },
+  {
+    "skill_name": "分類ネット",
+    "skill_category": "思考（比較系）",
+    "description": "共通点に注目して、バラバラな情報をグループごとにすくい上げるネット",
+    "hint": "調べた情報を「事実（見たこと）」と「意見（考えたこと）」に分ける、英単語を「名詞」「動詞」「形容詞」等で分ける等",
+    "shape": "■",
+    "color": "orange",
+    "image_url": "https://www.city.moriguchi.osaka.jp/material/images/group/54/bunrui.png"
+  },
+  {
+    "skill_name": "ナンバーバサミ",
+    "skill_category": "思考（分解↔統合系）",
+    "description": "複雑なものを細かく分けたり、構造やプロセスの意味を整え直したりする道具",
+    "hint": "物語を「はじめ・中・終わり」の段階に分けて整理する、文を言葉のパーツに切り分けて正しい並び順を考える等",
+    "shape": "▲",
+    "color": "blue",
+    "image_url": "https://www.city.moriguchi.osaka.jp/material/images/group/54/number.png"
+  },
+  {
+    "skill_name": "傾向スキャナー",
+    "skill_category": "思考（分解↔統合系）",
+    "description": "表やグラフ、数値や事例などの情報を読み取り、共通のパターンや、全体の傾向（増減等）を見つけ出す道具",
+    "hint": "折れ線グラフをスキャンして時間の経過とともに数値がどう変化したか読み取る等",
+    "shape": "▲",
+    "color": "blue",
+    "image_url": "https://www.city.moriguchi.osaka.jp/material/images/group/54/henko.png"
+  },
+  {
+    "skill_name": "だいじしぼり機",
+    "skill_category": "思考（分解↔統合系）",
+    "description": "対象の中から大事な要素や法則、原理等をしぼり出す道具",
+    "hint": "クラスみんなの意見から共通する「一番大事なルール」を抜き出す。物語の主人公の具体的な行動や発言等の描写から性格を考える等",
+    "shape": "▲",
+    "color": "blue",
+    "image_url": "https://www.city.moriguchi.osaka.jp/material/images/group/54/daiji.png"
+  },
+  {
+    "skill_name": "深掘りドリル",
+    "skill_category": "思考（分解↔統合系）",
+    "description": "地面を掘るように「なぜ？」「どうして？」と理由や根拠、予想を探るドリル",
+    "hint": "「なぜシュートが入らなかったのか？」という原因を足の向きやボールを蹴る場所等から深掘りする等",
+    "shape": "▲",
+    "color": "blue",
+    "image_url": "image.png"
+  },
+  {
+    "skill_name": "構造化ボンド",
+    "skill_category": "思考（分解↔統合系）",
+    "description": "バラバラの考え等を、網の目やピラミッドのような形にビタッとくっつけて整理するボンド",
+    "hint": "学級会の係活動を、誰が・どこで何をするかという「組織の図」にして整理する等",
+    "shape": "▲",
+    "color": "blue",
+    "image_url": "https://www.city.moriguchi.osaka.jp/material/images/group/54/kouzouka.png"
+  },
+  {
+    "skill_name": "つぶつぶスプレー",
+    "skill_category": "思考（分解↔統合系）",
+    "description": "対象にかけると、それが具体的な例や要素に分かれて、詳しく見えるようになるスプレー",
+    "hint": "「にぎやかな音」を、「ラッパのプップーという音」等と具体的に書き出す、遊びの具体例を考える",
+    "shape": "▲",
+    "color": "blue",
+    "image_url": "https://www.city.moriguchi.osaka.jp/material/images/group/54/gutai.png"
+  },
+  {
+    "skill_name": "五感レーダー",
+    "skill_category": "思考（多面・多角系）",
+    "description": "五感（見た目・音・におい・感触・味等）のアンテナで、情報をキャッチするレーダー",
+    "hint": "料理のレポートで「シャキシャキした歯ごたえ」「香ばしいかおり」等を記録する等",
+    "shape": "●",
+    "color": "pink",
+    "image_url": ""
+  },
+  {
+    "skill_name": "立場チェンジ帽子",
+    "skill_category": "思考（多面・多角系）",
+    "description": "かぶるだけで、自分・相手・第三者などと、違う立場になって考えられる帽子",
+    "hint": "ドッジボールのルールについて、「強い子」と「苦手な子」の両方の視点からみんなが楽しめるルールを考える等",
+    "shape": "●",
+    "color": "pink",
+    "image_url": ""
+  },
+  {
+    "skill_name": "教科ボックス",
+    "skill_category": "思考（多面・多角系）",
+    "description": "対象を中に入れると、タッチパネルで選んだ教科の見方・考え方で映し出される不思議な立方体",
+    "hint": "算数レンズ：学校の階段を「段数や角度」等の数字で捉えて見てみる等",
+    "shape": "●",
+    "color": "pink",
+    "image_url": ""
+  },
+  {
+    "skill_name": "置き換えスイッチ",
+    "skill_category": "思考（多面・多角系）",
+    "description": "「もし～なら？」「簡単な数なら？」と、場面や条件を切り替えて考えやすくしたり、考えを広げたりするスイッチ",
+    "hint": "分数や小数の問題に出会った時「簡単な整数」に置き換えて解き方を考える等",
+    "shape": "●",
+    "color": "pink",
+    "image_url": ""
+  },
+  {
+    "skill_name": "タイムワープスコープ",
+    "skill_category": "思考（多面・多角系）",
+    "description": "「過去・現在・未来」の時間をのぞき込み、それぞれの時代の様子を映す望遠鏡",
+    "hint": "「今の歌」と「100年前の歌」を聴き比べてリズムや歌詞の変化を感じ取る等",
+    "shape": "●",
+    "color": "pink",
+    "image_url": ""
+  },
+  {
+    "skill_name": "多読メガネ",
+    "skill_category": "言語",
+    "description": "文章の要点や構造を捉え、内容を正しく深く理解するための読解サポートメガネ",
+    "hint": "文章の要点や構造を理解し、内容を正しく深く理解するために活用する",
+    "shape": "♧",
+    "color": "green",
+    "image_url": ""
+  },
+  {
+    "skill_name": "虹色インクのペン",
+    "skill_category": "言語",
+    "description": "考えや情報を整理し、目的や相手に応じた文章で表現する力を育てるカラフルなペン",
+    "hint": "目的や相手に応じた文章で表現し、考えや情報を整理して伝える",
+    "shape": "♧",
+    "color": "green",
+    "image_url": ""
+  },
+  {
+    "skill_name": "響き渡るマイク",
+    "skill_category": "言語",
+    "description": "考えを整理し、相手に伝わるよう順序や言葉を選んで話す力を高める発信のマイク",
+    "hint": "考えを整理し、相手に伝わるように言葉を選んで発信する",
+    "shape": "♧",
+    "color": "green",
+    "image_url": ""
+  },
+  {
+    "skill_name": "魔法のタブレット",
+    "skill_category": "情報",
+    "description": "必要な情報を集めて比べ、整理しながら、学習や課題解決に効果的に生かす道具",
+    "hint": "必要な情報を集め、整理・分析して学習や課題解決に活用する",
+    "shape": "♢",
+    "color": "lightblue",
+    "image_url": ""
+  },
+  {
+    "skill_name": "知恵ナビランタン",
+    "skill_category": "情報",
+    "description": "情報の真偽やマナー、リスクを見極め、安全で責任ある行動へ導くためのランタン",
+    "hint": "情報の真偽やマナーを見極め、安全に情報を活用する",
+    "shape": "♢",
+    "color": "lightblue",
+    "image_url": ""
+  },
+  {
+    "skill_name": "ハーモニーバトン",
+    "skill_category": "協働",
+    "description": "敬意と傾聴を支え、意見を見える化して、違いを組み合わせて対話をサポートする魔法のバトン",
+    "hint": "違いを組み合わせて対話をサポートし、互いの意見を尊重して学ぶ",
+    "shape": "♡",
+    "color": "yellow",
+    "image_url": ""
+  },
+  {
+    "skill_name": "自分エンジンマニュアル",
+    "skill_category": "学び方",
+    "description": "自分の得意・苦手や学び方の特徴を知り、最適な学習方法を選ぶための手引き書",
+    "hint": "自分の学び方の特徴を知り、最適な学習方法を自分で選択する",
+    "shape": "♤",
+    "color": "red",
+    "image_url": ""
+  },
+  {
+    "skill_name": "リトライスニーカー",
+    "skill_category": "学び方",
+    "description": "失敗の衝撃を吸収して再挑戦の力に変え、蓄積した学びをブーストさせて成長の壁を駆け上がる魔法のスニーカー",
+    "hint": "失敗を恐れずに挑戦し、蓄積した学びを成長のエネルギーに変える",
+    "shape": "♤",
+    "color": "red",
+    "image_url": ""
+  }
+];
+
+    const colorGradients = {
+      orange: 'linear-gradient(135deg, #f97316, #fb923c, #fdba74)',
+      blue: 'linear-gradient(135deg, #3b82f6, #60a5fa, #93c5fd)',
+      pink: 'linear-gradient(135deg, #ec4899, #f472b6, #f9a8d4)',
+      purple: 'linear-gradient(135deg, #8b5cf6, #a78bfa, #c4b5fd)',
+      red: 'linear-gradient(135deg, #ef4444, #f87171, #fca5a5)',
+      green: 'linear-gradient(135deg, #10b981, #34d399, #6ee7b7)',
+      cyan: 'linear-gradient(135deg, #06b6d4, #22d3ee, #67e8f9)',
+      yellow: 'linear-gradient(135deg, #eab308, #facc15, #fde047)'
+    };
+    // 属性ごとの色を指定
+const CATEGORY_BACKGROUNDS = {
+  '思考（比較系）': '#FFEDD5',      // 薄いオレンジ
+  '思考（分解↔統合系）': '#DBEAFE', // 薄い青
+  '思考（多面・多角系）': '#FCE7F3', // 薄いピンク
+  '思考（特殊系）': '#EDE9FE',      // 薄い紫
+  '学び方': '#FEE2E2',             // 薄い赤
+  '言語': '#DCFCE7',               // 薄い緑
+  '情報': '#CFFAFE',               // 薄い水色
+  '協働': '#FEF9C3'                // 薄い黄色
+};
+    // カードデザインの統一設定（マイカード・カード一覧で共通）
+    const CARD_DESIGN = {
+      background: '#f97316',
+      border: '3px solid #d4af37',
+      borderGrid: '2px solid #d4af37',
+      boxShadow: '0 0 15px rgba(212, 175, 55, 0.3), 0 20px 40px rgba(0, 0, 0, 0.3)',
+      boxShadowGrid: '0 0 10px rgba(212, 175, 55, 0.2), 0 4px 8px rgba(0, 0, 0, 0.2)',
+      nameClass: 'text-gray-800',
+      descClass: 'text-gray-700'
+    };
+
+    function createCardHtml(card, options = {}) {
+      // サイズとオプション設定（grid/hand などから決定）
+      const size = options.size || 'hand'; // 'hand' | 'grid'
+      // マイカード・一覧カードはすべてミニ扱いにする
+      const isMini = options.isMini !== undefined ? options.isMini : true;
+      const showDelete = options.showDelete || options.showDeleteButton || false;
+
+      // サイズごとの調整（ポップアップレイアウトをベースに縮小）
+      const categoryFont = size === 'grid' ? 'text-[8px]' : 'text-[9px]';
+      const nameFont = size === 'grid' ? 'text-[11px]' : 'text-sm';
+      const categoryPadding = 'px-2';
+      const nameAreaPadding = 'px-1 pb-1';
+      const titleHeight = size === 'grid' ? '26px' : '32px';
+
+      // 説明・スキル例用クラス（一覧はさらに小さく）
+      const descClass = size === 'grid'
+        ? 'text-[8px] leading-snug line-clamp-2'
+        : 'text-[9px] leading-snug line-clamp-2';
+
+      const skillBoxPadding = size === 'grid' ? 'p-1' : 'p-1.5';
+      const skillLabelClass = size === 'grid'
+        ? 'text-[7px]'
+        : 'text-[8px]';
+      const skillTextClass = size === 'grid'
+        ? 'text-[7px] leading-snug line-clamp-1'
+        : 'text-[8px] leading-snug line-clamp-2';
+
+      // データ互換（backend 由来などのフィールド名差異に対応）
+      const imageUrl = card.image_url || card.skill_image_url || '';
+      const description = card.description || card.skill_description || '';
+      const hint = card.hint || '';
+
+      // イラスト（ポップアップと同じ中央配置）
+      let imgHtml = '';
+      if (imageUrl && imageUrl.trim()) {
+        imgHtml = `<img src="${imageUrl}" class="w-full h-auto max-h-full object-contain" alt="${card.skill_name}">`;
+      } else {
+        imgHtml = `<div class="text-white/20"><svg class="w-10 h-10" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path></svg></div>`;
+      }
+
+      // 削除ボタン（マイカード用） - handId を利用
+      const deleteBtn = showDelete && card.handId ? `
+        <button type="button" data-delete="${card.handId}" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg z-30 hover:bg-red-600 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      ` : '';
+
+      const gradient = colorGradients[card.color] || colorGradients.purple;
+
+      // ポップアップカードと同じ構造をベースにしたレイアウト（ミニ版）
+      return `
+        ${deleteBtn}
+        <div class="h-full flex flex-col overflow-hidden">
+          <div class="relative flex flex-col" style="height: 70%;">
+            <!-- 分類ラベルを上部に配置してイラストと重ならないようにする -->
+            <div class="flex items-start justify-end px-2 pt-1 pb-1">
+              <span class="${categoryPadding} py-0.5 rounded-full ${categoryFont} font-bold text-white shadow-md" style="background: ${gradient}">
+                ${card.shape} ${card.skill_category}
+              </span>
+            </div>
+
+            <div class="flex-1 flex items-start justify-center px-3 pt-1 pb-1 bg-white/10" style="min-height: 0;">
+              <div class="w-full h-full flex items-start justify-center">
+                ${imgHtml}
+              </div>
+            </div>
+
+            <div class="text-center ${nameAreaPadding} flex flex-col justify-end" style="min-height: ${titleHeight}; flex-shrink: 0;">
+              <p class="title-font font-bold ${nameFont} ${CARD_DESIGN.nameClass} leading-tight line-clamp-2">${card.skill_name}</p>
+              ${(card.formal_name || card.skill_formal_name || '').trim() ? `<p class="title-font ${size === 'grid' ? 'text-xs' : 'text-sm'} text-gray-600 mt-0.5 line-clamp-1">${card.formal_name || card.skill_formal_name || ''}</p>` : ''}
+            </div>
+          </div>
+
+          <div class="border-t-3 border-[#d4af37]" style="border-top-width: 2px; flex-shrink: 0;"></div>
+
+          <div class="flex flex-col" style="height: 30%;">
+            <div class="flex-1 flex items-center justify-center text-center px-3 py-1" style="min-height: 0;">
+              <p class="${descClass} ${CARD_DESIGN.descClass} text-center">
+                ${description}
+              </p>
+            </div>
+            <div class="px-3 pb-2" style="flex-shrink: 0;">
+              <div class="bg-gray-800/90 rounded-md ${skillBoxPadding} border border-gray-600">
+                <p class="${skillLabelClass} text-gray-300 mb-0.5 font-medium">🎯 スキル例</p>
+                <p class="${skillTextClass} text-gray-100">
+                  ${hint || 'スキル例はありません'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    let config = { ...defaultConfig };
+    let registeredCards = [];
+    let currentCard = null;
+    let isFlipped = false;
+    let handCards = JSON.parse(localStorage.getItem('handCards') || '[]');
+    let isLoading = false;
+    let selectedCategory = 'all';
+    let allCardsFilter = 'all';
+
+    const elements = {
+      appTitle: document.getElementById('app-title'),
+      drawSampleBtn: document.getElementById('draw-sample-btn'),
+      cardPlaceholder: document.getElementById('card-placeholder'),
+      cardDisplay: document.getElementById('card-display'),
+      cardInner: document.getElementById('card-inner'),
+      cardFront: document.getElementById('card-front'),
+      cardCategory: document.getElementById('card-category'),
+      cardName: document.getElementById('card-name'),
+      cardFormalName: document.getElementById('card-formal-name'),
+      cardDescription: document.getElementById('card-description'),
+      cardHint: document.getElementById('card-hint'),
+      cardActions: document.getElementById('card-actions'),
+      addToHandBtn: document.getElementById('add-to-hand-btn'),
+      returnToDeckBtn: document.getElementById('return-to-deck-btn'),
+      handCards: document.getElementById('hand-cards'),
+      handCount: document.getElementById('hand-count'),
+      handEmpty: document.getElementById('hand-empty'),
+      myCardsLabel: document.getElementById('my-cards-label'),
+      allCardsToggle: document.getElementById('all-cards-toggle'),
+      allCardsContent: document.getElementById('all-cards-content'),
+      allCardsArrow: document.getElementById('all-cards-arrow'),
+      allCardsGrid: document.getElementById('all-cards-grid'),
+      allCardsCount: document.getElementById('all-cards-count'),
+      loadingOverlay: document.getElementById('loading-overlay'),
+      toastContainer: document.getElementById('toast-container'),
+      importHandFile: document.getElementById('import-hand-file'),
+      exportHandJson: document.getElementById('export-hand-json')
+    };
+
+    document.getElementById('popup-overlay')?.querySelector('.popup-card').style.setProperty('background', CARD_DESIGN.background);
+
+    function showToast(message, type = 'success') {
+      const toast = document.createElement('div');
+      toast.className = `toast px-4 py-3 rounded-lg shadow-lg ${
+        type === 'success' ? 'bg-green-600' : 
+        type === 'error' ? 'bg-red-600' : 
+        'bg-yellow-600'
+      }`;
+      toast.textContent = message;
+      elements.toastContainer.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    function setLoading(loading) {
+      isLoading = loading;
+      elements.loadingOverlay.classList.toggle('hidden', !loading);
+    }
+
+    function drawCard(card) {
+      currentCard = card;
+      isFlipped = false;
+      
+      const gradient = colorGradients[card.color] || colorGradients.purple;
+      elements.cardFront.style.background = CATEGORY_BACKGROUNDS[card.skill_category] || CARD_DESIGN.background;
+      
+      const cardImage = document.getElementById('card-image');
+      
+      if (card.image_url && card.image_url.trim()) {
+        cardImage.src = card.image_url;
+        cardImage.style.display = 'block';
+      } else {
+        cardImage.style.display = 'none';
+      }
+      
+      elements.cardCategory.textContent = `${card.shape} ${card.skill_category}`;
+      elements.cardCategory.style.background = gradient;
+      elements.cardCategory.style.color = '#ffffff';
+      elements.cardName.textContent = card.skill_name;
+      if (elements.cardFormalName) elements.cardFormalName.textContent = card.formal_name || '';
+      elements.cardDescription.textContent = card.description;
+      elements.cardHint.textContent = card.hint || 'スキル例はありません';
+      
+      elements.cardPlaceholder.classList.add('hidden');
+      elements.cardDisplay.classList.remove('hidden');
+      elements.cardInner.classList.remove('flipped');
+      elements.cardDisplay.classList.remove('draw-animation');
+      void elements.cardDisplay.offsetWidth;
+      elements.cardDisplay.classList.add('draw-animation');
+      elements.cardActions.classList.remove('hidden');
+    }
+
+    function flipCard() {
+      isFlipped = !isFlipped;
+      elements.cardInner.classList.toggle('flipped', isFlipped);
+    }
+
+    function returnToDeck() {
+      currentCard = null;
+      isFlipped = false;
+      elements.cardDisplay.classList.add('hidden');
+      elements.cardPlaceholder.classList.remove('hidden');
+      elements.cardActions.classList.add('hidden');
+      elements.cardInner.classList.remove('flipped');
+    }
+
+    function addToHand() {
+      if (!currentCard) return;
+      
+      const cardToAdd = {
+        ...currentCard,
+        handId: Date.now().toString(),
+        formal_name: (currentCard.formal_name || currentCard.skill_formal_name || '').trim()
+      };
+      
+      handCards.push(cardToAdd);
+      localStorage.setItem('handCards', JSON.stringify(handCards));
+      renderHand();
+      showToast(`「${currentCard.skill_name}」をマイカードに加えました`);
+      returnToDeck();
+    }
+
+    function removeFromHand(handId) {
+      const card = handCards.find(c => c.handId === handId);
+      handCards = handCards.filter(c => c.handId !== handId);
+      localStorage.setItem('handCards', JSON.stringify(handCards));
+      renderHand();
+      if (card) {
+        showToast(`「${card.skill_name}」をマイカードから削除しました`);
+      }
+    }
+
+    function renderHand() {
+      const countText = `(${handCards.length}枚)`;
+      elements.handCount.textContent = countText;
+      
+      if (handCards.length === 0) {
+        elements.handEmpty.classList.remove('hidden');
+        const cards = elements.handCards.querySelectorAll('.my-card-item');
+        cards.forEach(c => c.remove());
+        return;
+      }
+      
+      elements.handEmpty.classList.add('hidden');
+      
+      const existingCards = new Map();
+      elements.handCards.querySelectorAll('.my-card-item').forEach(el => {
+        existingCards.set(el.dataset.handId, el);
+      });
+      
+      handCards.forEach((card, index) => {
+        if (existingCards.has(card.handId)) {
+          existingCards.delete(card.handId);
+        } else {
+          const cardEl = document.createElement('div');
+          cardEl.className = 'my-card-item relative shadow-2xl';
+          // ポップアップカードと同じ 2:3（縦長）比率に近づける
+          cardEl.style.width = '180px';
+          cardEl.style.height = '270px';
+          cardEl.style.background = CATEGORY_BACKGROUNDS[card.skill_category] || CARD_DESIGN.background;
+          cardEl.style.border = CARD_DESIGN.border;
+          cardEl.style.boxShadow = CARD_DESIGN.boxShadow;
+          
+          const rotation = (index % 3 - 1) * 3;
+          cardEl.style.transform = `rotate(${rotation}deg)`;
+          
+          cardEl.dataset.handId = card.handId;
+          cardEl.innerHTML = createCardHtml(card, { size: 'hand', showDeleteButton: true });
+          
+          cardEl.addEventListener('click', (e) => {
+            const deleteBtn = e.target.closest('[data-delete]');
+            if (deleteBtn) {
+              e.stopPropagation();
+              removeFromHand(deleteBtn.dataset.delete);
+            } else {
+              showPopup(card);
+            }
+          });
+          
+          elements.handCards.appendChild(cardEl);
+        }
+      });
+      
+      existingCards.forEach(el => el.remove());
+    }
+
+    function renderAllCardsGrid() {
+      const allCards = sampleCards;
+      const filteredCards = allCardsFilter === 'all' 
+        ? allCards 
+        : allCards.filter(card => card.skill_category === allCardsFilter);
+      
+      const countText = `(${allCards.length}枚)`;
+      elements.allCardsCount.textContent = countText;
+      
+      elements.allCardsGrid.innerHTML = '';
+      
+      const categories = [
+        '思考（比較系）',
+        '思考（分解↔統合系）',
+        '思考（多面・多角系）',
+        '思考（特殊系）',
+        '学び方',
+        '言語',
+        '情報',
+        '協働'
+      ];
+      
+      const groupedCards = {};
+      
+      categories.forEach(cat => {
+        groupedCards[cat] = filteredCards.filter(card => card.skill_category === cat);
+      });
+      
+      categories.forEach(category => {
+        const cardsInCategory = groupedCards[category];
+        if (cardsInCategory.length === 0) return;
+        
+        const headerEl = document.createElement('div');
+        headerEl.className = 'col-span-full flex items-center gap-3 mt-4 mb-2';
+        headerEl.innerHTML = `
+          <div class="flex items-center gap-2 text-lg font-bold text-yellow-400">
+            <span>${cardsInCategory[0].shape}</span>
+            <span>${category}</span>
+            <span class="text-sm text-gray-400">(${cardsInCategory.length}枚)</span>
+          </div>
+          <div class="flex-1 h-[2px] bg-gradient-to-r from-yellow-400/50 to-transparent"></div>
+        `;
+        elements.allCardsGrid.appendChild(headerEl);
+        
+        cardsInCategory.forEach(card => {
+          const cardEl = document.createElement('div');
+          // ポップアップカードに合わせて 2:3 の縦横比に変更
+          cardEl.className = 'grid-card-item shadow-lg overflow-hidden aspect-[2/3]';
+          cardEl.style.background = CATEGORY_BACKGROUNDS[card.skill_category] || CARD_DESIGN.background;
+          cardEl.style.border = CARD_DESIGN.borderGrid;
+          cardEl.style.boxShadow = CARD_DESIGN.boxShadowGrid;
+          cardEl.innerHTML = createCardHtml(card, { size: 'grid', showDeleteButton: false });
+          
+          cardEl.addEventListener('click', () => {
+            showPopup(card);
+          });
+          
+          elements.allCardsGrid.appendChild(cardEl);
+        });
+      });
+    }
+
+    async function deleteCard(card) {
+      if (isLoading) return;
+      
+      setLoading(true);
+      const result = await window.dataSdk.delete(card);
+      setLoading(false);
+      
+      if (result.isOk) {
+        showToast(`「${card.skill_name}」を削除しました`);
+      } else {
+        showToast('削除に失敗しました', 'error');
+      }
+    }
+
+    async function addCard(cardData) {
+      if (registeredCards.length >= 999) {
+        showToast('カードは999枚まで登録できます', 'warning');
+        return false;
+      }
+      
+      setLoading(true);
+      const result = await window.dataSdk.create({
+        ...cardData,
+        created_at: new Date().toISOString()
+      });
+      setLoading(false);
+      
+      if (result.isOk) {
+        showToast(`「${cardData.skill_name}」を追加しました`);
+        return true;
+      } else {
+        showToast('追加に失敗しました', 'error');
+        return false;
+      }
+    }
+
+    async function addSampleCards() {
+      if (registeredCards.length + sampleCards.length > 999) {
+        showToast('カードは999枚まで登録できます', 'warning');
+        return;
+      }
+      
+      setLoading(true);
+      let added = 0;
+      
+      for (const card of sampleCards) {
+        const result = await window.dataSdk.create({
+          ...card,
+          created_at: new Date().toISOString()
+        });
+        if (result.isOk) added++;
+      }
+      
+      setLoading(false);
+      showToast(`${added}種のサンプルカードを追加しました`);
+    }
+
+    async function importCSV(file) {
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        showToast('CSVファイルが空または無効です', 'error');
+        return;
+      }
+      
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const requiredHeaders = ['skill_name', 'skill_category', 'description'];
+      
+      if (!requiredHeaders.every(h => headers.includes(h))) {
+        showToast('必須の列が不足しています', 'error');
+        return;
+      }
+      
+      const cards = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',');
+        if (values.length < headers.length) continue;
+        
+        const card = {};
+        headers.forEach((h, idx) => {
+          card[h] = values[idx]?.trim() || '';
+        });
+        
+        if (card.skill_name && card.skill_category && card.description) {
+          cards.push({
+            skill_name: card.skill_name,
+            formal_name: card.formal_name || '',
+            skill_category: card.skill_category,
+            description: card.description,
+            hint: card.hint || '',
+            shape: card.shape || '●',
+            color: card.color || 'purple'
+          });
+        }
+      }
+      
+      if (cards.length === 0) {
+        showToast('有効なカードデータがありません', 'error');
+        return;
+      }
+      
+      if (registeredCards.length + cards.length > 999) {
+        showToast('カードは999枚まで登録できます', 'warning');
+        return;
+      }
+      
+      setLoading(true);
+      let added = 0;
+      
+      for (const card of cards) {
+        const result = await window.dataSdk.create({
+          ...card,
+          created_at: new Date().toISOString()
+        });
+        if (result.isOk) added++;
+      }
+      
+      setLoading(false);
+      showToast(`${added}枚のカードをインポートしました`);
+    }
+
+    function downloadSampleCSV() {
+      const csv = `skill_name,formal_name,skill_category,description,hint,shape,color
+同異点比較,,思考（比較系）,比べることで、ちがいと共通点を見つけるなど、整理する力,同異点比較／分類／関連づけ,■,orange
+順序づけ,,思考（分解↔統合系）,バラしたり組み立てたりして、筋道立てる力,順序づけ／理由づけ／具体化,▲,blue`;
+      
+      const dataUrl = 'data:text/csv;charset=utf-8,%EF%BB%BF' + encodeURIComponent(csv);
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = 'skill_cards_sample.csv';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.click();
+      showToast('CSVサンプルをダウンロードしました');
+    }
+
+    function updateUI() {
+      elements.appTitle.textContent = config.app_title || defaultConfig.app_title;
+      elements.drawSampleBtn.textContent = config.draw_sample_btn || defaultConfig.draw_sample_btn;
+      elements.addToHandBtn.textContent = config.add_to_hand_btn || defaultConfig.add_to_hand_btn;
+      elements.returnToDeckBtn.textContent = config.return_to_deck_btn || defaultConfig.return_to_deck_btn;
+      elements.myCardsLabel.textContent = config.my_cards_label || defaultConfig.my_cards_label;
+      applyCardBackImage();
+    }
+
+    function applyCardBackImage() {
+      const url = String(config?.card_back_image_url ?? defaultConfig.card_back_image_url ?? '').trim();
+      const placeholderImg = document.getElementById('card-placeholder-back-img');
+      const placeholderFallback = document.getElementById('card-placeholder-back-fallback');
+      const backImg = document.getElementById('card-back-img');
+      const backFallback = document.getElementById('card-back-fallback');
+      const showImage = (img, fallback) => {
+        if (img && fallback) {
+          img.style.display = 'block';
+          fallback.style.display = 'none';
+        }
+      };
+      const showFallback = (img, fallback) => {
+        if (img && fallback) {
+          img.style.display = 'none';
+          fallback.style.display = 'block';
+        }
+      };
+      if (!url) {
+        showFallback(placeholderImg, placeholderFallback);
+        showFallback(backImg, backFallback);
+        return;
+      }
+      const imgs = [placeholderImg, backImg].filter(Boolean);
+      if (imgs.length === 0) return;
+      let loadedCount = 0;
+      const tryShowImages = () => {
+        loadedCount++;
+        if (loadedCount >= imgs.length) {
+          showImage(placeholderImg, placeholderFallback);
+          showImage(backImg, backFallback);
+        }
+      };
+      imgs.forEach(img => {
+        img.src = url;
+        img.onload = tryShowImages;
+        img.onerror = () => {
+          showFallback(placeholderImg, placeholderFallback);
+          showFallback(backImg, backFallback);
+        };
+      });
+      setTimeout(() => {
+        if (imgs.every(i => i.complete && i.naturalWidth > 0)) {
+          showImage(placeholderImg, placeholderFallback);
+          showImage(backImg, backFallback);
+        }
+      }, 0);
+    }
+
+    function normalizeHandCard(raw) {
+      return {
+        ...raw,
+        handId: (raw.handId && typeof raw.handId === 'string') ? raw.handId : Date.now().toString() + '_' + Math.random().toString(36).slice(2),
+        skill_name: raw.skill_name || raw.name || '',
+        formal_name: (raw.formal_name || raw.skill_formal_name || '').trim(),
+        skill_category: raw.skill_category || raw.category || '',
+        description: raw.description || '',
+        hint: raw.hint || '',
+        shape: raw.shape || '●',
+        color: raw.color || 'purple',
+        image_url: raw.image_url || raw.skill_image_url || ''
+      };
+    }
+
+    function importHandFromFile(file) {
+      if (!file) return;
+      const isJson = /\.json$/i.test(file.name);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const text = (e.target?.result || '').toString().trim();
+          let cards = [];
+          if (isJson) {
+            const data = JSON.parse(text);
+            cards = Array.isArray(data) ? data : (data.cards ? data.cards : [data]);
+          } else {
+            const parseCsvLine = (line) => {
+              const out = [];
+              let i = 0;
+              while (i < line.length) {
+                if (line[i] === '"') {
+                  let s = '';
+                  i++;
+                  while (i < line.length) {
+                    if (line[i] === '"' && line[i + 1] === '"') { s += '"'; i += 2; }
+                    else if (line[i] === '"') { i++; break; }
+                    else { s += line[i]; i++; }
+                  }
+                  out.push(s.trim());
+                } else {
+                  let s = '';
+                  while (i < line.length && line[i] !== ',') { s += line[i]; i++; }
+                  out.push(s.trim());
+                  if (line[i] === ',') i++;
+                }
+              }
+              return out;
+            };
+            const lines = text.split(/\r?\n/).filter(l => l.trim());
+            if (lines.length < 2) {
+              showToast('CSVに1行以上のデータがありません', 'error');
+              return;
+            }
+            const headers = parseCsvLine(lines[0]).map(h => h.trim().toLowerCase());
+            const need = ['skill_name', 'skill_category', 'description'];
+            if (!need.every(h => headers.includes(h))) {
+              showToast('CSVに必須列（skill_name, skill_category, description）がありません', 'error');
+              return;
+            }
+            for (let i = 1; i < lines.length; i++) {
+              const values = parseCsvLine(lines[i]);
+              const card = {};
+              headers.forEach((h, idx) => { card[h] = (values[idx] || '').trim(); });
+              if (card.skill_name && card.skill_category && card.description) {
+                cards.push({
+                  skill_name: card.skill_name,
+                  formal_name: card.formal_name || '',
+                  skill_category: card.skill_category,
+                  description: card.description,
+                  hint: card.hint || '',
+                  shape: card.shape || '●',
+                  color: card.color || 'purple',
+                  image_url: card.image_url || card.skill_image_url || ''
+                });
+              }
+            }
+          }
+          if (cards.length === 0) {
+            showToast('有効なカードがありません', 'error');
+            return;
+          }
+          handCards = cards.map((c, i) => normalizeHandCard({ ...c, handId: `import_${Date.now()}_${i}` }));
+          localStorage.setItem('handCards', JSON.stringify(handCards));
+          renderHand();
+          showToast(`マイカードに${handCards.length}枚読み込みました`);
+        } catch (err) {
+          console.error(err);
+          showToast('ファイルの読み込みに失敗しました', 'error');
+        }
+        elements.importHandFile.value = '';
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    function exportHandJSON() {
+      if (handCards.length === 0) {
+        showToast('マイカードが空です', 'warning');
+        return;
+      }
+      
+      const exportData = handCards.map(card => ({
+        skill_name: card.skill_name,
+        formal_name: card.formal_name || '',
+        skill_category: card.skill_category,
+        description: card.description,
+        hint: card.hint || '',
+        shape: card.shape,
+        color: card.color,
+        image_url: card.image_url || card.skill_image_url || ''
+      }));
+      
+      const json = JSON.stringify(exportData, null, 2);
+      const dataUrl = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `my_cards_${new Date().toISOString().split('T')[0]}.json`;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.click();
+      showToast('マイカードを保存しました');
+    }
+
+    function exportRegisteredCSV() {
+      if (registeredCards.length === 0) {
+        showToast('登録カードが空です', 'warning');
+        return;
+      }
+      
+      const quote = (s) => (s == null ? '' : String(s)).includes(',') || String(s).includes('"') ? '"' + String(s).replace(/"/g, '""') + '"' : String(s);
+      const headers = 'skill_name,formal_name,skill_category,description,hint,shape,color,image_url\n';
+      const rows = registeredCards.map(card =>
+        [card.skill_name, card.formal_name || '', card.skill_category, card.description, card.hint || '', card.shape, card.color, card.image_url || card.skill_image_url || ''].map(quote).join(',')
+      ).join('\n');
+      
+      const csv = headers + rows;
+      const dataUrl = 'data:text/csv;charset=utf-8,%EF%BB%BF' + encodeURIComponent(csv);
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `registered_cards_${new Date().toISOString().split('T')[0]}.csv`;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.click();
+      showToast('登録カードをCSV出力しました');
+    }
+
+    function exportRegisteredJSON() {
+      if (registeredCards.length === 0) {
+        showToast('登録カードが空です', 'warning');
+        return;
+      }
+      
+      const exportData = registeredCards.map(card => ({
+        skill_name: card.skill_name,
+        formal_name: card.formal_name || '',
+        skill_category: card.skill_category,
+        description: card.description,
+        hint: card.hint || '',
+        shape: card.shape,
+        color: card.color,
+        image_url: card.image_url || card.skill_image_url || ''
+      }));
+      
+      const json = JSON.stringify(exportData, null, 2);
+      const dataUrl = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `registered_cards_${new Date().toISOString().split('T')[0]}.json`;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.click();
+      showToast('登録カードをJSON出力しました');
+    }
+    
+    function showPopup(card) {
+      const popupOverlay = document.getElementById('popup-overlay');
+      const popupCategory = document.getElementById('popup-category');
+      const popupImage = document.getElementById('popup-image');
+      const popupName = document.getElementById('popup-name');
+      const popupFormalName = document.getElementById('popup-formal-name');
+      const popupDescription = document.getElementById('popup-description');
+      const popupHint = document.getElementById('popup-hint');
+      const popupCard = document.querySelector('.popup-card');
+popupCard.style.background = CATEGORY_BACKGROUNDS[card.skill_category] || CARD_DESIGN.background;
+      
+      const gradient = colorGradients[card.color] || colorGradients.purple;
+      
+      popupCategory.textContent = `${card.shape} ${card.skill_category}`;
+      popupCategory.style.background = gradient;
+      
+      if (card.image_url && card.image_url.trim()) {
+        popupImage.src = card.image_url;
+        popupImage.style.display = 'block';
+      } else {
+        popupImage.style.display = 'none';
+      }
+      
+      popupName.textContent = card.skill_name;
+      if (popupFormalName) popupFormalName.textContent = (card.formal_name || card.skill_formal_name || '').trim();
+      popupDescription.textContent = card.description;
+      popupHint.textContent = card.hint || 'スキル例はありません';
+      
+      popupOverlay.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+    
+    function hidePopup() {
+      const popupOverlay = document.getElementById('popup-overlay');
+      popupOverlay.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    const dataHandler = {
+      onDataChanged(data) {
+        registeredCards = data;
+      }
+    };
+
+    async function initElementSDK() {
+      if (window.elementSdk) {
+        await window.elementSdk.init({
+          defaultConfig,
+          onConfigChange: async (newConfig) => {
+            config = { ...defaultConfig, ...newConfig };
+            updateUI();
+          },
+          mapToCapabilities: (cfg) => ({
+            recolorables: [],
+            borderables: [],
+            fontEditable: undefined,
+            fontSizeable: undefined
+          }),
+          mapToEditPanelValues: (cfg) => new Map([
+            ['app_title', cfg.app_title || defaultConfig.app_title],
+            ['draw_sample_btn', cfg.draw_sample_btn || defaultConfig.draw_sample_btn],
+            ['add_to_hand_btn', cfg.add_to_hand_btn || defaultConfig.add_to_hand_btn],
+            ['return_to_deck_btn', cfg.return_to_deck_btn || defaultConfig.return_to_deck_btn],
+            ['my_cards_label', cfg.my_cards_label || defaultConfig.my_cards_label]
+          ])
+        });
+        config = { ...defaultConfig, ...window.elementSdk.config };
+      }
+    }
+
+    function getCategoryShapeAndColor(category) {
+      const categoryMap = {
+        '思考（比較系）': { shape: '■', color: 'orange' },
+        '思考（分解↔統合系）': { shape: '▲', color: 'blue' },
+        '思考（多面・多角系）': { shape: '●', color: 'pink' },
+        '思考（特殊系）': { shape: '★', color: 'purple' },
+        '学び方': { shape: '♤', color: 'red' },
+        '言語': { shape: '♧', color: 'green' },
+        '情報': { shape: '♢', color: 'cyan' },
+        '協働': { shape: '♡', color: 'yellow' }
+      };
+      
+      return categoryMap[category] || { shape: '●', color: 'purple' };
+    }
+
+    function setupEventListeners() {
+      document.querySelectorAll('.category-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.category-filter-btn').forEach(b => {
+            b.classList.remove('active', 'bg-yellow-600', 'hover:bg-yellow-700');
+            b.classList.add('bg-gray-700', 'hover:bg-gray-600');
+          });
+          btn.classList.add('active', 'bg-yellow-600', 'hover:bg-yellow-700');
+          btn.classList.remove('bg-gray-700', 'hover:bg-gray-600');
+          selectedCategory = btn.dataset.category;
+        });
+      });
+      
+      document.querySelectorAll('.all-cards-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.all-cards-filter-btn').forEach(b => {
+            b.classList.remove('active', 'bg-purple-600', 'hover:bg-purple-700');
+            b.classList.add('bg-gray-700', 'hover:bg-gray-600');
+          });
+          btn.classList.add('active', 'bg-purple-600', 'hover:bg-purple-700');
+          btn.classList.remove('bg-gray-700', 'hover:bg-gray-600');
+          allCardsFilter = btn.dataset.filter;
+          renderAllCardsGrid();
+        });
+      });
+      
+      elements.allCardsToggle.addEventListener('click', () => {
+        const isHidden = elements.allCardsContent.classList.contains('hidden');
+        elements.allCardsContent.classList.toggle('hidden');
+        elements.allCardsArrow.style.transform = isHidden ? 'rotate(180deg)' : '';
+      });
+      
+      elements.drawSampleBtn.addEventListener('click', () => {
+        const filteredCards = selectedCategory === 'all' 
+          ? sampleCards 
+          : sampleCards.filter(card => card.skill_category === selectedCategory);
+        
+        if (filteredCards.length === 0) {
+          showToast(`${selectedCategory}のカードがありません`, 'warning');
+          return;
+        }
+        
+        const randomCard = filteredCards[Math.floor(Math.random() * filteredCards.length)];
+        drawCard(randomCard);
+      });
+      
+      elements.addToHandBtn.addEventListener('click', addToHand);
+      elements.returnToDeckBtn.addEventListener('click', returnToDeck);
+      
+      elements.importHandFile.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (file) importHandFromFile(file);
+      });
+      elements.exportHandJson.addEventListener('click', exportHandJSON);
+      
+      document.getElementById('popup-close').addEventListener('click', hidePopup);
+      document.getElementById('popup-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'popup-overlay') {
+          hidePopup();
+        }
+      });
+    }
+
+    async function init() {
+      await initElementSDK();
+      updateUI();
+      renderHand();
+      renderAllCardsGrid();
+      
+      if (window.dataSdk) {
+        const result = await window.dataSdk.init(dataHandler);
+        if (!result.isOk) {
+          showToast('データの読み込みに失敗しました', 'error');
+        }
+      }
+      
+      setupEventListeners();
+    }
+
+    init();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9c771ac6a514fc98',t:'MTc3MDAwODIxNC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
